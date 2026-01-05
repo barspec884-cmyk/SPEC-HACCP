@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HACCP 日次チェック（店内用）</title>
+  <style>
+    :root{ --bg:#0e0c0a; --panel:#1c1915; --text:#f4f4f4; --muted:#b9b1a6; --line:rgba(255,255,255,.12); }
+    body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Noto Sans JP",sans-serif; background:var(--bg); color:var(--text); }
+    .wrap{ max-width:720px; margin:0 auto; padding:16px; }
+    .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:12px 0; }
+    h1{ font-size:18px; margin:0 0 10px; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    .col{ flex:1 1 220px; min-width:220px; }
+    label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+    input,select,textarea,button{
+      width:100%; box-sizing:border-box; border-radius:12px; border:1px solid var(--line);
+      background:#14110e; color:var(--text); padding:12px; font-size:14px;
+    }
+    textarea{ min-height:80px; resize:vertical; }
+    .checkline{ display:flex; align-items:flex-start; gap:10px; padding:10px 8px; border:1px solid var(--line); border-radius:12px; margin:10px 0; background:#14110e; }
+    .checkline input[type="checkbox"]{ width:20px; height:20px; margin-top:2px; }
+    .checkline .t{ flex:1; }
+    .btnrow{ display:flex; gap:10px; flex-wrap:wrap; }
+    button{ cursor:pointer; }
+    .primary{ background:#2a241d; }
+    .danger{ background:#2a1d1d; }
+    .ghost{ background:transparent; }
+    .meta{ font-size:12px; color:var(--muted); line-height:1.6; }
+    .ok{ color:#9fe7b1; }
+    .ng{ color:#ffb3b3; }
+    table{ width:100%; border-collapse:collapse; }
+    th,td{ border-bottom:1px solid var(--line); padding:10px 6px; font-size:13px; vertical-align:top; }
+    th{ text-align:left; color:var(--muted); font-weight:600; }
+    .pill{ display:inline-block; padding:2px 8px; border:1px solid var(--line); border-radius:999px; font-size:12px; color:var(--muted); }
+    .small{ font-size:12px; color:var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>HACCP 日次チェック（店内のみ）</h1>
+      <div class="meta">
+        <div>運用開始日：<span id="startDate" class="pill">-</span></div>
+        <div>本日：<span id="today" class="pill">-</span>　保存状態：<span id="saveState" class="pill">未保存</span></div>
+        <div class="small">方針：過去日の後入れは不可（当日分のみ）。月末にCSV出力してバックアップしてください。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1>本日の入力</h1>
+
+      <div class="row">
+        <div class="col">
+          <label>担当スタッフ</label>
+          <select id="staff">
+            <option value="">選択してください</option>
+            <option>SPEC</option>
+            <option>STAFF_A</option>
+            <option>STAFF_B</option>
+            <option>STAFF_C</option>
+          </select>
+        </div>
+
+        <div class="col">
+          <label>冷蔵庫温度（℃）</label>
+          <input id="fridgeTemp" type="number" step="0.1" inputmode="decimal" placeholder="例：4.2" />
+          <div class="small">目安：10℃以下（店舗ルールに合わせてください）</div>
+        </div>
+
+        <div class="col">
+          <label>冷凍庫温度（℃）</label>
+          <input id="freezerTemp" type="number" step="1" inputmode="decimal" placeholder="例：-20" />
+          <div class="small">目安：-18℃以下（店舗ルールに合わせてください）</div>
+        </div>
+      </div>
+
+      <div class="checkline">
+        <input id="health" type="checkbox" />
+        <div class="t">
+          <div><b>従業員体調確認（異常なし）</b></div>
+          <div class="small">発熱・下痢・嘔吐などが無いことを確認</div>
+        </div>
+      </div>
+
+      <div class="checkline">
+        <input id="handwash" type="checkbox" />
+        <div class="t">
+          <div><b>手洗い・消毒 実施</b></div>
+          <div class="small">営業前／必要時に実施</div>
+        </div>
+      </div>
+
+      <div class="checkline">
+        <input id="ice" type="checkbox" />
+        <div class="t">
+          <div><b>製氷機・氷周りの清潔確認</b></div>
+          <div class="small">スコップ専用・保管状況も含む</div>
+        </div>
+      </div>
+
+      <div class="checkline">
+        <input id="fruit" type="checkbox" />
+        <div class="t">
+          <div><b>カットフルーツ／ガーニッシュ 状態確認</b></div>
+          <div class="small">変色・異臭・ドリップなど</div>
+        </div>
+      </div>
+
+      <div class="checkline">
+        <input id="tools" type="checkbox" />
+        <div class="t">
+          <div><b>まな板・包丁・器具 洗浄消毒</b></div>
+          <div class="small">交差汚染の防止</div>
+        </div>
+      </div>
+
+      <div class="checkline">
+        <input id="cloth" type="checkbox" />
+        <div class="t">
+          <div><b>グラス拭きクロス 交換・衛生</b></div>
+          <div class="small">濡れっぱなし／使い回しの防止</div>
+        </div>
+      </div>
+
+      <label>備考（異常があった場合のみ）</label>
+      <textarea id="notes" placeholder="例：冷蔵庫が12℃→庫内整理・扉閉め確認、以後6℃に復帰。廃棄：カットレモン。"></textarea>
+
+      <div class="btnrow" style="margin-top:12px;">
+        <button class="primary" id="saveBtn">本日分を保存</button>
+        <button class="ghost" id="loadBtn">本日分を読み込み</button>
+        <button class="danger" id="resetBtn">入力をクリア</button>
+      </div>
+
+      <div class="small" id="msg" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h1>履歴（直近）</h1>
+      <div class="btnrow" style="margin-bottom:10px;">
+        <button class="ghost" id="refreshHistoryBtn">履歴を更新</button>
+        <button class="primary" id="exportCsvBtn">CSV出力（全期間）</button>
+      </div>
+      <div class="small">立入時は、この履歴画面またはCSVを提示してください。</div>
+      <div style="overflow:auto; margin-top:10px;">
+        <table>
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>担当</th>
+              <th>温度</th>
+              <th>状態</th>
+              <th>備考</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td colspan="5" class="small">データなし</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1>運用ルール（スタッフ向け 1分）</h1>
+      <div class="meta">
+        <div>1) 営業前（または締め）に、チェックを入れて「保存」。</div>
+        <div>2) 異常があったら備考に書く（何をしたか／廃棄したか）。</div>
+        <div>3) 月末に「CSV出力」して店内PC/USBにバックアップ。</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ==========
+  // Date helpers
+  // ==========
+  const pad = (n)=> String(n).padStart(2,"0");
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  };
+
+  // ==========
+  // IndexedDB minimal wrapper
+  // ==========
+  const DB_NAME = "haccp_bar_local";
+  const DB_VERSION = 1;
+  const STORE = "daily";
+  const META = "meta";
+
+  function openDB(){
+    return new Promise((resolve,reject)=>{
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          const st = db.createObjectStore(STORE, { keyPath: "date" });
+          st.createIndex("date", "date", { unique: true });
+        }
+        if (!db.objectStoreNames.contains(META)) {
+          db.createObjectStore(META, { keyPath: "key" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function tx(db, storeName, mode="readonly"){
+    return db.transaction(storeName, mode).objectStore(storeName);
+  }
+
+  async function metaGet(db, key){
+    return new Promise((resolve,reject)=>{
+      const req = tx(db, META).get(key);
+      req.onsuccess = ()=> resolve(req.result ? req.result.value : null);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+
+  async function metaSet(db, key, value){
+    return new Promise((resolve,reject)=>{
+      const req = tx(db, META, "readwrite").put({ key, value });
+      req.onsuccess = ()=> resolve(true);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+
+  async function dailyGet(db, date){
+    return new Promise((resolve,reject)=>{
+      const req = tx(db, STORE).get(date);
+      req.onsuccess = ()=> resolve(req.result || null);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+
+  async function dailyPut(db, record){
+    return new Promise((resolve,reject)=>{
+      const req = tx(db, STORE, "readwrite").put(record);
+      req.onsuccess = ()=> resolve(true);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+
+  async function dailyAll(db){
+    return new Promise((resolve,reject)=>{
+      const req = tx(db, STORE).getAll();
+      req.onsuccess = ()=> resolve(req.result || []);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+
+  // ==========
+  // UI bindings
+  // ==========
+  const el = (id)=> document.getElementById(id);
+  const ui = {
+    startDate: el("startDate"),
+    today: el("today"),
+    saveState: el("saveState"),
+    msg: el("msg"),
+
+    staff: el("staff"),
+    fridgeTemp: el("fridgeTemp"),
+    freezerTemp: el("freezerTemp"),
+    health: el("health"),
+    handwash: el("handwash"),
+    ice: el("ice"),
+    fruit: el("fruit"),
+    tools: el("tools"),
+    cloth: el("cloth"),
+    notes: el("notes"),
+
+    saveBtn: el("saveBtn"),
+    loadBtn: el("loadBtn"),
+    resetBtn: el("resetBtn"),
+
+    refreshHistoryBtn: el("refreshHistoryBtn"),
+    exportCsvBtn: el("exportCsvBtn"),
+    historyBody: el("historyBody"),
+  };
+
+  function setMsg(text, ok=true){
+    ui.msg.textContent = text;
+    ui.msg.className = ok ? "ok" : "ng";
+  }
+
+  function setSaveState(text){
+    ui.saveState.textContent = text;
+  }
+
+  function clearForm(){
+    ui.staff.value = "";
+    ui.fridgeTemp.value = "";
+    ui.freezerTemp.value = "";
+    ui.health.checked = false;
+    ui.handwash.checked = false;
+    ui.ice.checked = false;
+    ui.fruit.checked = false;
+    ui.tools.checked = false;
+    ui.cloth.checked = false;
+    ui.notes.value = "";
+  }
+
+  function formToRecord(date){
+    return {
+      date,
+      staff: ui.staff.value.trim(),
+      temps: {
+        fridge: ui.fridgeTemp.value === "" ? null : Number(ui.fridgeTemp.value),
+        freezer: ui.freezerTemp.value === "" ? null : Number(ui.freezerTemp.value),
+      },
+      checks: {
+        health: !!ui.health.checked,
+        handwash: !!ui.handwash.checked,
+        ice: !!ui.ice.checked,
+        fruit: !!ui.fruit.checked,
+        tools: !!ui.tools.checked,
+        cloth: !!ui.cloth.checked,
+      },
+      notes: ui.notes.value.trim(),
+      savedAt: new Date().toISOString(),
+    };
+  }
+
+  function recordToForm(r){
+    ui.staff.value = r.staff || "";
+    ui.fridgeTemp.value = (r.temps?.fridge ?? "") === null ? "" : (r.temps.fridge ?? "");
+    ui.freezerTemp.value = (r.temps?.freezer ?? "") === null ? "" : (r.temps.freezer ?? "");
+    ui.health.checked = !!r.checks?.health;
+    ui.handwash.checked = !!r.checks?.handwash;
+    ui.ice.checked = !!r.checks?.ice;
+    ui.fruit.checked = !!r.checks?.fruit;
+    ui.tools.checked = !!r.checks?.tools;
+    ui.cloth.checked = !!r.checks?.cloth;
+    ui.notes.value = r.notes || "";
+  }
+
+  function validate(record){
+    const missing = [];
+
+    if (!record.staff) missing.push("担当スタッフ");
+    if (record.temps.fridge === null || Number.isNaN(record.temps.fridge)) missing.push("冷蔵庫温度");
+    if (record.temps.freezer === null || Number.isNaN(record.temps.freezer)) missing.push("冷凍庫温度");
+
+    // チェックは「必須」にする（抜け防止）
+    const mustChecks = [
+      ["health","従業員体調確認"],
+      ["handwash","手洗い・消毒"],
+      ["ice","製氷機・氷周り"],
+      ["fruit","ガーニッシュ状態"],
+      ["tools","器具洗浄消毒"],
+      ["cloth","クロス衛生"],
+    ];
+    for (const [k,label] of mustChecks){
+      if (!record.checks[k]) missing.push(label);
+    }
+
+    if (missing.length) {
+      return { ok:false, message:`未入力/未チェック：${missing.join("、")}` };
+    }
+
+    // 温度の注意（アラートは出すが保存はできる）
+    const warns = [];
+    if (record.temps.fridge > 10) warns.push(`冷蔵庫温度が高め（${record.temps.fridge}℃）`);
+    if (record.temps.freezer > -18) warns.push(`冷凍庫温度が高め（${record.temps.freezer}℃）`);
+
+    if (warns.length && !record.notes){
+      return { ok:false, message:`注意：${warns.join(" / ")}。備考に是正内容を記入してください。` };
+    }
+
+    return { ok:true, message:"OK" };
+  }
+
+  function statusText(r){
+    // 簡易表示
+    const ok = r.checks?.health && r.checks?.handwash && r.checks?.ice && r.checks?.fruit && r.checks?.tools && r.checks?.cloth;
+    return ok ? "OK" : "要確認";
+  }
+
+  function tempText(r){
+    const f = (r.temps?.fridge ?? null);
+    const z = (r.temps?.freezer ?? null);
+    return `冷:${f ?? "-"}℃ / 凍:${z ?? "-"}℃`;
+  }
+
+  async function renderHistory(db){
+    const rows = await dailyAll(db);
+    rows.sort((a,b)=> (b.date || "").localeCompare(a.date || "")); // desc
+
+    if (!rows.length){
+      ui.historyBody.innerHTML = `<tr><td colspan="5" class="small">データなし</td></tr>`;
+      return;
+    }
+
+    ui.historyBody.innerHTML = rows.slice(0, 30).map(r=>{
+      const st = statusText(r);
+      const stClass = (st === "OK") ? "ok" : "ng";
+      const notes = (r.notes || "").replaceAll("<","&lt;").replaceAll(">","&gt;");
+      return `
+        <tr>
+          <td>${r.date}</td>
+          <td>${(r.staff || "").replaceAll("<","&lt;").replaceAll(">","&gt;")}</td>
+          <td>${tempText(r)}</td>
+          <td class="${stClass}">${st}</td>
+          <td>${notes || ""}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function toCSV(rows){
+    const header = [
+      "date","staff",
+      "health","handwash","iceClean","fruitCheck","toolsClean","clothHygiene",
+      "fridgeTemp","freezerTemp","notes","savedAt"
+    ];
+    const esc = (v)=>{
+      const s = (v ?? "").toString();
+      if (/[",\n]/.test(s)) return `"${s.replaceAll('"','""')}"`;
+      return s;
+    };
+
+    const lines = [header.join(",")];
+    for (const r of rows){
+      lines.push([
+        r.date,
+        r.staff,
+        r.checks?.health ? "OK":"NG",
+        r.checks?.handwash ? "OK":"NG",
+        r.checks?.ice ? "OK":"NG",
+        r.checks?.fruit ? "OK":"NG",
+        r.checks?.tools ? "OK":"NG",
+        r.checks?.cloth ? "OK":"NG",
+        r.temps?.fridge ?? "",
+        r.temps?.freezer ?? "",
+        r.notes ?? "",
+        r.savedAt ?? ""
+      ].map(esc).join(","));
+    }
+    return lines.join("\n");
+  }
+
+  function downloadText(filename, content, mime="text/csv;charset=utf-8"){
+    const blob = new Blob([content], { type:mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 500);
+  }
+
+  // ==========
+  // Boot
+  // ==========
+  (async ()=>{
+    const db = await openDB();
+
+    // 運用開始日の確定（初回起動日）
+    const today = todayISO();
+    ui.today.textContent = today;
+
+    let start = await metaGet(db, "startDate");
+    if (!start){
+      start = today;
+      await metaSet(db, "startDate", start);
+    }
+    ui.startDate.textContent = start;
+
+    // 過去日入力不可（仕様：当日分のみ）
+    // ※日付入力をUIに出していないので、ロジック側で固定
+
+    // 本日分があるか表示
+    const existing = await dailyGet(db, today);
+    if (existing){
+      setSaveState("本日分あり");
+      recordToForm(existing);
+      setMsg("本日分の記録を読み込みました。", true);
+    } else {
+      setSaveState("未保存");
+      setMsg("本日分を入力して保存してください。", true);
+    }
+
+    await renderHistory(db);
+
+    // Handlers
+    ui.saveBtn.addEventListener("click", async ()=>{
+      const date = todayISO();
+      if (date !== ui.today.textContent){
+        // 日付跨ぎ対策（深夜）
+        ui.today.textContent = date;
+      }
+
+      const record = formToRecord(date);
+      const v = validate(record);
+      if (!v.ok){
+        setMsg(v.message, false);
+        return;
+      }
+
+      await dailyPut(db, record);
+      setSaveState("保存済み");
+      setMsg("保存しました。", true);
+      await renderHistory(db);
+    });
+
+    ui.loadBtn.addEventListener("click", async ()=>{
+      const date = todayISO();
+      const r = await dailyGet(db, date);
+      if (!r){
+        setMsg("本日分の保存データがありません。", false);
+        return;
+      }
+      recordToForm(r);
+      setSaveState("本日分あり");
+      setMsg("本日分を読み込みました。", true);
+    });
+
+    ui.resetBtn.addEventListener("click", ()=>{
+      clearForm();
+      setMsg("入力をクリアしました（未保存）。", true);
+      setSaveState("未保存");
+    });
+
+    ui.refreshHistoryBtn.addEventListener("click", async ()=>{
+      await renderHistory(db);
+      setMsg("履歴を更新しました。", true);
+    });
+
+    ui.exportCsvBtn.addEventListener("click", async ()=>{
+      const rows = await dailyAll(db);
+      rows.sort((a,b)=> (a.date || "").localeCompare(b.date || "")); // asc
+      const csv = toCSV(rows);
+      const now = new Date();
+      const y = now.getFullYear(), m = pad(now.getMonth()+1);
+      downloadText(`HACCP_${y}_${m}_BAR.csv`, csv);
+      setMsg("CSVを出力しました。店内PC/USBへ保存してください。", true);
+    });
+
+  })().catch(err=>{
+    console.error(err);
+    alert("初期化に失敗しました。ブラウザがIndexedDBに対応しているか確認してください。");
+  });
+})();
+</script>
+</body>
+</html>
