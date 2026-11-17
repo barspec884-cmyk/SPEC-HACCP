@@ -35,6 +35,26 @@
     th{ text-align:left; color:var(--muted); font-weight:600; }
     .pill{ display:inline-block; padding:2px 8px; border:1px solid var(--line); border-radius:999px; font-size:12px; color:var(--muted); }
     .small{ font-size:12px; color:var(--muted); }
+    /* 温度：タップすると下から出るドラムロール */
+    .tempbtn{ text-align:left; font-size:18px; font-weight:700; display:flex; justify-content:space-between; align-items:center; }
+    .tempbtn.unset{ font-size:14px; font-weight:400; color:var(--muted); border-color:rgba(255,179,179,.5); }
+    .tempbtn::after{ content:"▼"; font-size:12px; color:var(--muted); }
+    .sheetbg{ position:fixed; inset:0; background:rgba(0,0,0,.55); opacity:0; pointer-events:none; transition:opacity .2s; z-index:50; }
+    .sheetbg.open{ opacity:1; pointer-events:auto; }
+    .sheet{ position:fixed; left:0; right:0; bottom:0; background:var(--panel); border-top:1px solid var(--line); border-radius:16px 16px 0 0; transform:translateY(100%); transition:transform .25s ease; z-index:51; padding:0 0 calc(16px + env(safe-area-inset-bottom)); }
+    .sheet.open{ transform:translateY(0); }
+    .sheethead{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--line); }
+    .sheethead button{ width:auto; padding:8px 16px; }
+    .sheethead #sheetDone{ font-weight:700; color:#9fe7b1; }
+    .sheethead #sheetTitle{ font-weight:700; }
+    .drumwrap{ position:relative; max-width:360px; margin:8px auto 0; }
+    .drum{ height:220px; overflow-y:scroll; scroll-snap-type:y mandatory; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+    .drum::-webkit-scrollbar{ display:none; }
+    .drum .pad{ height:88px; }
+    .drum .it{ height:44px; line-height:44px; text-align:center; scroll-snap-align:center; font-size:18px; color:var(--muted); cursor:pointer; user-select:none; }
+    .drum .it.sel{ color:var(--text); font-size:24px; font-weight:700; }
+    .drumwrap::before{ content:""; position:absolute; left:16px; right:16px; top:88px; height:44px; background:rgba(255,255,255,.07); border-radius:10px; pointer-events:none; }
+    .drumwrap::after{ content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(var(--panel), rgba(28,25,21,0) 35%, rgba(28,25,21,0) 65%, var(--panel)); }
   </style>
 </head>
 <body>
@@ -44,6 +64,8 @@
       <div class="meta">
         <div>運用開始日：<span id="startDate" class="pill">-</span></div>
         <div>本日：<span id="today" class="pill">-</span>　保存状態：<span id="saveState" class="pill">未保存</span></div>
+        <div>前回のバックアップ送信：<span id="lastExport" class="pill">まだありません</span></div>
+        <div id="exportWarn" class="ng" style="display:none; margin-top:4px;"></div>
         <div class="small">方針：過去日の後入れは不可（当日分のみ）。月末にCSV出力してバックアップしてください。</div>
       </div>
     </div>
@@ -65,13 +87,15 @@
 
         <div class="col">
           <label>冷蔵庫温度（℃）</label>
-          <input id="fridgeTemp" type="number" step="0.1" inputmode="decimal" placeholder="例：4.2" />
+          <input type="hidden" id="fridgeTemp" />
+          <button type="button" class="tempbtn unset" id="fridgeTempBtn">タップして選択</button>
           <div class="small">目安：10℃以下（店舗ルールに合わせてください）</div>
         </div>
 
         <div class="col">
           <label>冷凍庫温度（℃）</label>
-          <input id="freezerTemp" type="number" step="1" inputmode="decimal" placeholder="例：-20" />
+          <input type="hidden" id="freezerTemp" />
+          <button type="button" class="tempbtn unset" id="freezerTempBtn">タップして選択</button>
           <div class="small">目安：-18℃以下（店舗ルールに合わせてください）</div>
         </div>
       </div>
@@ -140,8 +164,10 @@
       <h1>履歴（直近）</h1>
       <div class="btnrow" style="margin-bottom:10px;">
         <button class="ghost" id="refreshHistoryBtn">履歴を更新</button>
-        <button class="primary" id="exportCsvBtn">CSV出力（全期間）</button>
+        <button class="primary" id="shareCsvBtn">📤 CSVを送る（メール・LINEなど）</button>
+        <button class="ghost" id="exportCsvBtn">CSVをこの端末に保存</button>
       </div>
+      <div class="small" id="exportMsg" style="margin-bottom:6px;"></div>
       <div class="small">立入時は、この履歴画面またはCSVを提示してください。</div>
       <div style="overflow:auto; margin-top:10px;">
         <table>
@@ -166,9 +192,20 @@
       <div class="meta">
         <div>1) 営業前（または締め）に、チェックを入れて「保存」。</div>
         <div>2) 異常があったら備考に書く（何をしたか／廃棄したか）。</div>
-        <div>3) 月末に「CSV出力」して店内PC/USBにバックアップ。</div>
+        <div>3) 月末に「CSVを送る」で、自分あてのメールなどに送ってバックアップ。</div>
       </div>
     </div>
+  </div>
+
+  <!-- 温度選択（下から出てくるドラムロール） -->
+  <div class="sheetbg" id="sheetBg"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheethead">
+      <button type="button" class="ghost" id="sheetCancel">キャンセル</button>
+      <div id="sheetTitle"></div>
+      <button type="button" class="ghost" id="sheetDone">完了</button>
+    </div>
+    <div class="drumwrap"><div class="drum" id="sheetDrum"></div></div>
   </div>
 
 <script>
@@ -279,8 +316,107 @@
 
     refreshHistoryBtn: el("refreshHistoryBtn"),
     exportCsvBtn: el("exportCsvBtn"),
+    shareCsvBtn: el("shareCsvBtn"),
+    exportMsg: el("exportMsg"),
+    lastExport: el("lastExport"),
+    exportWarn: el("exportWarn"),
     historyBody: el("historyBody"),
   };
+
+  // ==========
+  // 温度：タップすると下から出てくるドラムロール
+  // （範囲・刻み・最初に出る温度を変えたいときは、下の数字を書き換えるだけでOK）
+  // ==========
+  const TEMP_LIST = {
+    fridgeTemp:  { label:"冷蔵庫温度", min:-40, max:40, step:0.1, start:7   }, // 冷蔵庫：最初は 7.0℃
+    freezerTemp: { label:"冷凍庫温度", min:-40, max:40, step:0.1, start:-20 }, // 冷凍庫：最初は -20.0℃
+  };
+  const ITEM_H = 44; // 1行の高さ(px)
+
+  const sheet = el("sheet"), sheetBg = el("sheetBg"), drum = el("sheetDrum");
+  let curId = null, values = [], curIdx = 0, selEl = null, raf = 0;
+
+  const fmt = (t)=> Number(t).toFixed(1) + "℃";
+
+  function buildValues(cfg, extra){
+    const vals = [];
+    const lo = Math.round(cfg.min / cfg.step), hi = Math.round(cfg.max / cfg.step);
+    for (let i = lo; i <= hi; i++) vals.push(Math.round(i * cfg.step * 10) / 10 || 0);
+    if (extra !== null && !Number.isNaN(extra) && !vals.includes(extra)){ vals.push(extra); vals.sort((a,b)=>a-b); }
+    return vals;
+  }
+
+  function highlight(i){
+    curIdx = i;
+    if (selEl) selEl.classList.remove("sel");
+    selEl = drum.children[i + 1] || null; // 先頭は余白
+    if (selEl) selEl.classList.add("sel");
+  }
+
+  drum.addEventListener("scroll", ()=>{
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(()=>{
+      const i = Math.max(0, Math.min(values.length - 1, Math.round(drum.scrollTop / ITEM_H)));
+      if (i !== curIdx || !selEl) highlight(i);
+    });
+  });
+
+  drum.addEventListener("click", (e)=>{
+    const it = e.target.closest(".it");
+    if (!it) return;
+    const i = Number(it.dataset.i);
+    drum.scrollTo({ top: i * ITEM_H, behavior: "smooth" });
+    highlight(i);
+  });
+
+  function openSheet(id){
+    curId = id;
+    const cfg = TEMP_LIST[id];
+    const now = el(id).value === "" ? null : Number(el(id).value);
+    values = buildValues(cfg, now);
+    drum.innerHTML = `<div class="pad"></div>` +
+      values.map((t,i)=> `<div class="it" data-i="${i}">${fmt(t)}</div>`).join("") +
+      `<div class="pad"></div>`;
+    selEl = null;
+    el("sheetTitle").textContent = cfg.label;
+    let i = values.indexOf(now !== null ? now : cfg.start);
+    if (i < 0) i = 0;
+    sheet.classList.add("open");
+    sheetBg.classList.add("open");
+    drum.scrollTop = i * ITEM_H;
+    highlight(i);
+  }
+
+  function closeSheet(){
+    sheet.classList.remove("open");
+    sheetBg.classList.remove("open");
+    curId = null;
+  }
+
+  el("sheetDone").addEventListener("click", ()=>{
+    if (curId) setTempValue(curId, values[curIdx]);
+    closeSheet();
+  });
+  el("sheetCancel").addEventListener("click", closeSheet);
+  sheetBg.addEventListener("click", closeSheet);
+
+  // 温度の欄に値をセット（null で未選択に戻す）
+  function setTempValue(id, v){
+    const btn = el(id + "Btn");
+    if (v === null || v === undefined || v === "" || Number.isNaN(Number(v))){
+      el(id).value = "";
+      btn.textContent = "タップして選択";
+      btn.classList.add("unset");
+    } else {
+      el(id).value = String(Number(v));
+      btn.textContent = fmt(v);
+      btn.classList.remove("unset");
+    }
+  }
+
+  ["fridgeTemp","freezerTemp"].forEach(id=>{
+    el(id + "Btn").addEventListener("click", ()=> openSheet(id));
+  });
 
   function setMsg(text, ok=true){
     ui.msg.textContent = text;
@@ -293,8 +429,8 @@
 
   function clearForm(){
     ui.staff.value = "";
-    ui.fridgeTemp.value = "";
-    ui.freezerTemp.value = "";
+    setTempValue("fridgeTemp", null);
+    setTempValue("freezerTemp", null);
     ui.health.checked = false;
     ui.handwash.checked = false;
     ui.ice.checked = false;
@@ -327,8 +463,8 @@
 
   function recordToForm(r){
     ui.staff.value = r.staff || "";
-    ui.fridgeTemp.value = (r.temps?.fridge ?? "") === null ? "" : (r.temps.fridge ?? "");
-    ui.freezerTemp.value = (r.temps?.freezer ?? "") === null ? "" : (r.temps.freezer ?? "");
+    setTempValue("fridgeTemp", r.temps?.fridge);
+    setTempValue("freezerTemp", r.temps?.freezer);
     ui.health.checked = !!r.checks?.health;
     ui.handwash.checked = !!r.checks?.handwash;
     ui.ice.checked = !!r.checks?.ice;
@@ -443,8 +579,22 @@
     return lines.join("\n");
   }
 
-  function downloadText(filename, content, mime="text/csv;charset=utf-8"){
-    const blob = new Blob([content], { type:mime });
+  // 先頭の "\uFEFF" は、ExcelでCSVを開いたときに日本語が文字化けしないためのおまじない
+  function makeCsvBlob(content){
+    return new Blob(["\uFEFF" + content], { type:"text/csv;charset=utf-8" });
+  }
+
+  // スマホの「共有」画面を開いて、メール・LINE・AirDropなどで送る
+  // 共有できたら true、この端末が共有に対応していなければ false
+  async function shareFile(filename, content, title){
+    const file = new File([makeCsvBlob(content)], filename, { type:"text/csv" });
+    if (!navigator.canShare || !navigator.canShare({ files:[file] })) return false;
+    await navigator.share({ files:[file], title, text:title });
+    return true;
+  }
+
+  function downloadText(filename, content){
+    const blob = makeCsvBlob(content);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -471,6 +621,23 @@
       await metaSet(db, "startDate", start);
     }
     ui.startDate.textContent = start;
+
+    // 前回のバックアップ送信日を表示（30日以上たっていたら注意を出す）
+    async function showLastExport(){
+      const last = await metaGet(db, "lastExport");
+      ui.lastExport.textContent = last || "まだありません";
+      const hasData = (await dailyAll(db)).length > 0;
+      const days = last ? Math.floor((new Date(todayISO()) - new Date(last)) / 86400000) : null;
+      if (hasData && (last === null || days >= 30)){
+        ui.exportWarn.textContent = last
+          ? `⚠ 前回の送信から${days}日たっています。「CSVを送る」でバックアップしてください。`
+          : "⚠ まだ一度もバックアップしていません。「CSVを送る」でバックアップしてください。";
+        ui.exportWarn.style.display = "";
+      } else {
+        ui.exportWarn.style.display = "none";
+      }
+    }
+    await showLastExport();
 
     // 過去日入力不可（仕様：当日分のみ）
     // ※日付入力をUIに出していないので、ロジック側で固定
@@ -532,14 +699,49 @@
       setMsg("履歴を更新しました。", true);
     });
 
-    ui.exportCsvBtn.addEventListener("click", async ()=>{
+    function setExportMsg(text, ok=true){
+      ui.exportMsg.textContent = text;
+      ui.exportMsg.className = ok ? "ok" : "ng";
+    }
+
+    async function buildCsv(){
       const rows = await dailyAll(db);
-      rows.sort((a,b)=> (a.date || "").localeCompare(b.date || "")); // asc
-      const csv = toCSV(rows);
-      const now = new Date();
-      const y = now.getFullYear(), m = pad(now.getMonth()+1);
-      downloadText(`HACCP_${y}_${m}_BAR.csv`, csv);
-      setMsg("CSVを出力しました。店内PC/USBへ保存してください。", true);
+      rows.sort((a,b)=> (a.date || "").localeCompare(b.date || "")); // 古い順
+      const d = todayISO().replaceAll("-","");
+      return { rows, csv: toCSV(rows), filename: `HACCP_BarSPEC_${d}.csv` };
+    }
+
+    // 📤 CSVを送る（メール・LINEなど）
+    ui.shareCsvBtn.addEventListener("click", async ()=>{
+      const { rows, csv, filename } = await buildCsv();
+      if (!rows.length){ setExportMsg("まだ記録がありません。", false); return; }
+      const title = `HACCP記録（Bar SPEC）${rows[0].date}〜${rows[rows.length-1].date}`;
+      try {
+        const shared = await shareFile(filename, csv, title);
+        if (!shared){
+          // 共有に対応していない端末（PCなど）は、保存に切り替え
+          downloadText(filename, csv);
+          setExportMsg("この端末は「送る」に対応していないため、ファイルとして保存しました。保存したファイルをメールに添付してください。", true);
+        } else {
+          setExportMsg("送信画面を開きました。送り終わったらバックアップ完了です。", true);
+        }
+        await metaSet(db, "lastExport", todayISO());
+        await showLastExport();
+      } catch (e){
+        if (e && e.name === "AbortError"){ setExportMsg("送信をキャンセルしました。", false); return; }
+        console.error(e);
+        setExportMsg("送信画面を開けませんでした。「CSVをこの端末に保存」を使ってください。", false);
+      }
+    });
+
+    // CSVをこの端末に保存
+    ui.exportCsvBtn.addEventListener("click", async ()=>{
+      const { rows, csv, filename } = await buildCsv();
+      if (!rows.length){ setExportMsg("まだ記録がありません。", false); return; }
+      downloadText(filename, csv);
+      await metaSet(db, "lastExport", todayISO());
+      await showLastExport();
+      setExportMsg("CSVをこの端末に保存しました。", true);
     });
 
   })().catch(err=>{
