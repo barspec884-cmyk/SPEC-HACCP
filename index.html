@@ -35,14 +35,45 @@
     th{ text-align:left; color:var(--muted); font-weight:600; }
     .pill{ display:inline-block; padding:2px 8px; border:1px solid var(--line); border-radius:999px; font-size:12px; color:var(--muted); }
     .small{ font-size:12px; color:var(--muted); }
+    /* 保健所に見せる記録表（白背景） */
+    .report{ display:none; position:fixed; inset:0; z-index:60; background:#fff; color:#111; overflow:auto; -webkit-overflow-scrolling:touch; }
+    .report.open{ display:block; }
+    .report-bar{ position:sticky; top:0; display:flex; gap:10px; padding:10px; background:#f3f3f3; border-bottom:1px solid #ccc; }
+    .report-bar button{ width:auto; background:#fff; color:#111; border:1px solid #999; padding:10px 16px; font-size:15px; }
+    #reportBody{ padding:16px; }
+    #reportBody h2{ font-size:18px; margin:0 0 4px; }
+    #reportBody .rmeta{ font-size:12px; color:#444; margin-bottom:10px; line-height:1.6; }
+    #reportBody table{ width:100%; border-collapse:collapse; }
+    #reportBody th, #reportBody td{ border:1px solid #888; padding:5px 4px; font-size:11px; color:#111; text-align:center; vertical-align:middle; }
+    #reportBody th{ background:#eee; font-weight:700; }
+    #reportBody td.l{ text-align:left; }
+    #reportBody .bad{ color:#c00; font-weight:700; }
+    #reportBody .legend{ font-size:11px; color:#444; margin-top:8px; line-height:1.6; }
+    #reportBody .sign{ margin-top:16px; font-size:12px; display:flex; gap:24px; justify-content:flex-end; }
+    #reportBody .sign span{ display:inline-block; width:90px; height:40px; border:1px solid #888; vertical-align:middle; margin-left:6px; }
+    @media print{
+      @page{ size:A4 landscape; margin:10mm; }
+      body{ background:#fff; }
+      body > *:not(.report){ display:none !important; }
+      .report{ position:static; display:block !important; overflow:visible; }
+      .report-bar{ display:none; }
+      #reportBody{ padding:0; }
+      #reportBody tr{ page-break-inside:avoid; }
+    }
+    .fold summary{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; }
+    .fold summary::-webkit-details-marker{ display:none; }
+    .fold summary::before{ content:"▶"; font-size:12px; color:var(--muted); transition:transform .2s; }
+    .fold[open] summary::before{ transform:rotate(90deg); }
+    .fold summary h1{ margin:0; }
+    .fold[open] summary .small{ display:none; }
     /* 温度：タップすると下から出るドラムロール */
     .tempbtn{ text-align:left; font-size:18px; font-weight:700; display:flex; justify-content:space-between; align-items:center; }
     .tempbtn.unset{ font-size:14px; font-weight:400; color:var(--muted); border-color:rgba(255,179,179,.5); }
     .tempbtn::after{ content:"▼"; font-size:12px; color:var(--muted); }
     .sheetbg{ position:fixed; inset:0; background:rgba(0,0,0,.55); opacity:0; pointer-events:none; transition:opacity .2s; z-index:50; }
     .sheetbg.open{ opacity:1; pointer-events:auto; }
-    .sheet{ position:fixed; left:0; right:0; bottom:0; background:var(--panel); border-top:1px solid var(--line); border-radius:16px 16px 0 0; transform:translateY(100%); transition:transform .25s ease; z-index:51; padding:0 0 calc(16px + env(safe-area-inset-bottom)); }
-    .sheet.open{ transform:translateY(0); }
+    .sheet{ position:fixed; left:0; right:0; bottom:0; background:var(--panel); border-top:1px solid var(--line); border-radius:16px 16px 0 0; transform:translateY(100%); visibility:hidden; transition:transform .25s ease, visibility .25s; z-index:51; padding:0 0 calc(16px + env(safe-area-inset-bottom)); }
+    .sheet.open{ transform:translateY(0); visibility:visible; }
     .sheethead{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--line); }
     .sheethead button{ width:auto; padding:8px 16px; }
     .sheethead #sheetDone{ font-weight:700; color:#9fe7b1; }
@@ -161,14 +192,37 @@
     </div>
 
     <div class="card">
-      <h1>履歴（直近）</h1>
+      <h1>運用ルール（スタッフ向け 1分）</h1>
+      <div class="meta">
+        <div>1) 営業前（または締め）に、チェックを入れて「保存」。</div>
+        <div>2) 異常があったら備考に書く（何をしたか／廃棄したか）。</div>
+        <div>3) 月末に、いちばん下の「履歴・CSV送信」を開いて「CSVを送る」（AirDropなどでバックアップ）。</div>
+        <div>4) 保健所の立入時は、いちばん下の「履歴・CSV送信」→「🖨 保健所に見せる記録表」を開いて見せる。</div>
+      </div>
+    </div>
+
+    <details class="card fold">
+      <summary><h1>履歴・CSV送信</h1><span class="small">（タップで開く）</span></summary>
+      <div style="margin-top:12px;">
       <div class="btnrow" style="margin-bottom:10px;">
         <button class="ghost" id="refreshHistoryBtn">履歴を更新</button>
-        <button class="primary" id="shareCsvBtn">📤 CSVを送る（メール・LINEなど）</button>
+        <button class="primary" id="shareCsvBtn">📤 CSVを送る（AirDrop・LINE・メールなど）</button>
         <button class="ghost" id="exportCsvBtn">CSVをこの端末に保存</button>
       </div>
       <div class="small" id="exportMsg" style="margin-bottom:6px;"></div>
-      <div class="small">立入時は、この履歴画面またはCSVを提示してください。</div>
+      <div class="card" style="margin:6px 0 12px; background:#14110e;">
+        <div style="font-weight:700; margin-bottom:6px;">🏥 保健所の立入時</div>
+        <div class="row" style="align-items:flex-end;">
+          <div class="col" style="min-width:160px;">
+            <label style="margin-top:0;">期間</label>
+            <select id="reportMonth"></select>
+          </div>
+          <div class="col" style="min-width:160px;">
+            <button class="primary" id="openReportBtn">🖨 保健所に見せる記録表</button>
+          </div>
+        </div>
+        <div class="small" style="margin-top:6px;">全項目を一覧にした表が開きます。そのまま画面で見せるか、印刷・PDF保存できます。</div>
+      </div>
       <div style="overflow:auto; margin-top:10px;">
         <table>
           <thead>
@@ -185,16 +239,17 @@
           </tbody>
         </table>
       </div>
-    </div>
-
-    <div class="card">
-      <h1>運用ルール（スタッフ向け 1分）</h1>
-      <div class="meta">
-        <div>1) 営業前（または締め）に、チェックを入れて「保存」。</div>
-        <div>2) 異常があったら備考に書く（何をしたか／廃棄したか）。</div>
-        <div>3) 月末に「CSVを送る」で、自分あてのメールなどに送ってバックアップ。</div>
       </div>
+    </details>
+  </div>
+
+  <!-- 保健所に見せる記録表（白背景・印刷用） -->
+  <div id="report" class="report">
+    <div class="report-bar">
+      <button type="button" id="closeReportBtn">✕ 閉じる</button>
+      <button type="button" id="printReportBtn">🖨 印刷・PDF保存</button>
     </div>
+    <div id="reportBody"></div>
   </div>
 
   <!-- 温度選択（下から出てくるドラムロール） -->
@@ -317,6 +372,8 @@
     refreshHistoryBtn: el("refreshHistoryBtn"),
     exportCsvBtn: el("exportCsvBtn"),
     shareCsvBtn: el("shareCsvBtn"),
+    reportMonth: el("reportMonth"),
+    openReportBtn: el("openReportBtn"),
     exportMsg: el("exportMsg"),
     lastExport: el("lastExport"),
     exportWarn: el("exportWarn"),
@@ -630,8 +687,8 @@
       const days = last ? Math.floor((new Date(todayISO()) - new Date(last)) / 86400000) : null;
       if (hasData && (last === null || days >= 30)){
         ui.exportWarn.textContent = last
-          ? `⚠ 前回の送信から${days}日たっています。「CSVを送る」でバックアップしてください。`
-          : "⚠ まだ一度もバックアップしていません。「CSVを送る」でバックアップしてください。";
+          ? `⚠ 前回の送信から${days}日たっています。画面いちばん下の「履歴・CSV送信」を開いて「CSVを送る」でバックアップしてください。`
+          : "⚠ まだ一度もバックアップしていません。画面いちばん下の「履歴・CSV送信」を開いて「CSVを送る」でバックアップしてください。";
         ui.exportWarn.style.display = "";
       } else {
         ui.exportWarn.style.display = "none";
@@ -674,6 +731,7 @@
       setSaveState("保存済み");
       setMsg("保存しました。", true);
       await renderHistory(db);
+      await fillMonthList();
     });
 
     ui.loadBtn.addEventListener("click", async ()=>{
@@ -711,7 +769,96 @@
       return { rows, csv: toCSV(rows), filename: `HACCP_BarSPEC_${d}.csv` };
     }
 
-    // 📤 CSVを送る（メール・LINEなど）
+    // ==========
+    // 🏥 保健所に見せる記録表
+    // ==========
+    const esc = (v)=> String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+
+    async function fillMonthList(){
+      const rows = await dailyAll(db);
+      const months = [...new Set(rows.map(r => (r.date || "").slice(0,7)).filter(Boolean))].sort().reverse();
+      const keep = ui.reportMonth.value;
+      ui.reportMonth.innerHTML = `<option value="all">全期間</option>` +
+        months.map(m => `<option value="${m}">${m.replace("-","年")}月</option>`).join("");
+      if ([...ui.reportMonth.options].some(o => o.value === keep)) ui.reportMonth.value = keep;
+      else if (months.length) ui.reportMonth.value = months[0]; // 最新の月
+    }
+    await fillMonthList();
+
+    async function openReport(){
+      const sel = ui.reportMonth.value || "all";
+      let rows = await dailyAll(db);
+      if (sel !== "all") rows = rows.filter(r => (r.date || "").startsWith(sel));
+      rows.sort((a,b)=> (a.date || "").localeCompare(b.date || ""));
+
+      const mark = (b)=> b ? "○" : `<span class="bad">×</span>`;
+      const temp = (v, limit)=> {
+        if (v === null || v === undefined || v === "") return "-";
+        const t = Number(v).toFixed(1);
+        return Number(v) > limit ? `<span class="bad">${t}</span>` : t;
+      };
+      const period = sel === "all"
+        ? (rows.length ? `${rows[0].date} 〜 ${rows[rows.length-1].date}` : "-")
+        : `${sel.replace("-","年")}月`;
+
+      const body = rows.length ? rows.map(r => `
+        <tr>
+          <td>${esc(r.date)}</td>
+          <td>${esc(r.staff)}</td>
+          <td>${temp(r.temps?.fridge, 10)}</td>
+          <td>${temp(r.temps?.freezer, -18)}</td>
+          <td>${mark(r.checks?.health)}</td>
+          <td>${mark(r.checks?.handwash)}</td>
+          <td>${mark(r.checks?.ice)}</td>
+          <td>${mark(r.checks?.fruit)}</td>
+          <td>${mark(r.checks?.tools)}</td>
+          <td>${mark(r.checks?.cloth)}</td>
+          <td class="l">${esc(r.notes)}</td>
+        </tr>`).join("")
+        : `<tr><td colspan="11">この期間の記録はありません</td></tr>`;
+
+      el("reportBody").innerHTML = `
+        <h2>衛生管理記録（HACCPの考え方を取り入れた衛生管理）</h2>
+        <div class="rmeta">
+          店舗名：Bar SPEC　／　期間：${esc(period)}（${rows.length}日分）<br>
+          出力日：${todayISO()}　／　運用開始日：${esc(ui.startDate.textContent)}
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2">日付</th><th rowspan="2">担当</th>
+              <th colspan="2">温度（℃）</th>
+              <th colspan="6">一般衛生管理の確認</th>
+              <th rowspan="2" style="width:28%;">備考（異常時の対応・廃棄など）</th>
+            </tr>
+            <tr>
+              <th>冷蔵庫</th><th>冷凍庫</th>
+              <th>従業員<br>体調</th><th>手洗い<br>消毒</th><th>製氷機<br>氷周り</th>
+              <th>ｶｯﾄﾌﾙｰﾂ<br>ｶﾞｰﾆｯｼｭ</th><th>器具<br>洗浄消毒</th><th>ｸﾛｽ<br>衛生</th>
+            </tr>
+          </thead>
+          <tbody>${body}</tbody>
+        </table>
+        <div class="legend">
+          ○＝実施・異常なし　×＝未実施　赤字＝基準外（冷蔵庫10℃超／冷凍庫-18℃超）<br>
+          基準外のときは、備考欄に対応内容を記録しています。
+        </div>
+        <div class="sign">確認者<span></span></div>`;
+
+      el("report").classList.add("open");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeReport(){
+      el("report").classList.remove("open");
+      document.body.style.overflow = "";
+    }
+
+    ui.openReportBtn.addEventListener("click", openReport);
+    el("closeReportBtn").addEventListener("click", closeReport);
+    el("printReportBtn").addEventListener("click", ()=> window.print());
+
+    // 📤 CSVを送る（AirDrop・LINE・メールなど）
     ui.shareCsvBtn.addEventListener("click", async ()=>{
       const { rows, csv, filename } = await buildCsv();
       if (!rows.length){ setExportMsg("まだ記録がありません。", false); return; }
